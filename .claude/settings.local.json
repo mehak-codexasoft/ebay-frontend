@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\CodexaSoft\\beway\\admin-panel2\\nul\")",
+      "Bash(rm:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
