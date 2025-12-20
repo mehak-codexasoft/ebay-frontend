@@ -178,9 +178,11 @@ export default function Landmarks() {
       setEditingLandmark(landmark);
       try {
         const fullLandmark = await landmarkService.getLandmarkById(landmark.id);
+        // Extract city ID if city is an object
+        const cityId = typeof fullLandmark.city === 'object' ? fullLandmark.city?.id : fullLandmark.city;
         setFormData({
           name: fullLandmark.name || '',
-          city: typeof fullLandmark.city === 'object' ? fullLandmark.city?.name : (fullLandmark.city || ''),
+          city: cityId || '',
           short_description: fullLandmark.short_description || '',
           recommendations: fullLandmark.recommendations || '',
           category: fullLandmark.category || 'PARK',
@@ -193,9 +195,11 @@ export default function Landmarks() {
           is_child_friendly: fullLandmark.is_child_friendly || true,
         });
       } catch (err) {
+        // Extract city ID if city is an object
+        const cityId = typeof landmark.city === 'object' ? landmark.city?.id : landmark.city;
         setFormData({
           name: landmark.name || '',
-          city: typeof landmark.city === 'object' ? landmark.city?.name : (landmark.city || ''),
+          city: cityId || '',
           short_description: landmark.short_description || '',
           recommendations: landmark.recommendations || '',
           category: landmark.category || 'PARK',
@@ -243,9 +247,8 @@ export default function Landmarks() {
 
     try {
       if (editingLandmark) {
-        // Use PATCH for partial update - exclude city as it requires ID not name
-        const { city: _city, ...patchData } = formData;
-        await landmarkService.patchLandmark(editingLandmark.id, patchData);
+        // Use PATCH for partial update - now city is sent as ID from dropdown
+        await landmarkService.patchLandmark(editingLandmark.id, formData);
       } else {
         await landmarkService.createLandmark(formData);
       }
@@ -528,13 +531,17 @@ export default function Landmarks() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                     required
-                  />
+                  >
+                    <option value="">Select City</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={city.id}>{city.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
