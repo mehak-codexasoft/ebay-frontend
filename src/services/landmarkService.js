@@ -9,8 +9,9 @@ const landmarkService = {
   },
 
   // POST /api/landmarks/ - Create Landmark
-  createLandmark: async (data) => {
-    const response = await api.post('/api/landmarks/', data);
+  createLandmark: async (data, isFormData = false) => {
+    const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+    const response = await api.post('/api/landmarks/', data, config);
     return response.data;
   },
 
@@ -27,8 +28,9 @@ const landmarkService = {
   },
 
   // PATCH /api/landmarks/{id}/ - Partial Update Landmark
-  patchLandmark: async (id, data) => {
-    const response = await api.patch(`/api/landmarks/${id}/`, data);
+  patchLandmark: async (id, data, isFormData = false) => {
+    const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+    const response = await api.patch(`/api/landmarks/${id}/`, data, config);
     return response.data;
   },
 
