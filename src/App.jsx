@@ -10,12 +10,13 @@ import Settings from './pages/Settings';
 import Users from './pages/Users';
 import Trips from './pages/Trips';
 import Login from './pages/Login';
+import authService from './services/authService';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const loggedIn = authService.isAuthenticated();
     setIsLoggedIn(loggedIn);
   }, []);
 
@@ -23,10 +24,14 @@ function App() {
     setIsLoggedIn(true);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('user');
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggedIn(false);
+    }
   };
 
   if (!isLoggedIn) {
