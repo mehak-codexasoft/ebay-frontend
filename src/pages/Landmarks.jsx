@@ -40,6 +40,9 @@ export default function Landmarks() {
   const [formData, setFormData] = useState({
     name: '',
     city: '',
+    continent: 'EU',
+    country: '',
+    location: { type: 'Point', coordinates: [0, 0] },
     short_description: '',
     recommendations: '',
     category: 'PARK',
@@ -51,6 +54,16 @@ export default function Landmarks() {
     is_above_18: false,
     is_child_friendly: true,
   });
+
+  const continents = [
+    { value: 'AF', label: 'Africa' },
+    { value: 'AN', label: 'Antarctica' },
+    { value: 'AS', label: 'Asia' },
+    { value: 'EU', label: 'Europe' },
+    { value: 'NA', label: 'North America' },
+    { value: 'OC', label: 'Oceania' },
+    { value: 'SA', label: 'South America' },
+  ];
 
   // Fetch landmarks
   const fetchLandmarks = async () => {
@@ -200,6 +213,9 @@ export default function Landmarks() {
       setFormData({
         name: '',
         city: '',
+        continent: 'EU',
+        country: '',
+        location: { type: 'Point', coordinates: [0, 0] },
         short_description: '',
         recommendations: '',
         category: 'PARK',
@@ -521,6 +537,76 @@ export default function Landmarks() {
                   />
                 </div>
               </div>
+
+              {/* Show continent, country, location only for new landmarks */}
+              {!editingLandmark && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Continent *</label>
+                      <select
+                        value={formData.continent}
+                        onChange={(e) => setFormData({ ...formData, continent: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500"
+                        required
+                      >
+                        {continents.map(c => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+                      <input
+                        type="text"
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        placeholder="e.g. Slovakia"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Latitude *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.location?.coordinates?.[1] || 0}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          location: {
+                            type: 'Point',
+                            coordinates: [formData.location?.coordinates?.[0] || 0, parseFloat(e.target.value) || 0]
+                          }
+                        })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        placeholder="e.g. 48.1486"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Longitude *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.location?.coordinates?.[0] || 0}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          location: {
+                            type: 'Point',
+                            coordinates: [parseFloat(e.target.value) || 0, formData.location?.coordinates?.[1] || 0]
+                          }
+                        })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        placeholder="e.g. 17.1077"
+                        required
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
