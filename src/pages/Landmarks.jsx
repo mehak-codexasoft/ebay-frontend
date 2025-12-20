@@ -30,6 +30,7 @@ export default function Landmarks() {
   const [viewingLandmark, setViewingLandmark] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // Delete confirmation
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -244,6 +245,7 @@ export default function Landmarks() {
     setEditingLandmark(null);
     setSelectedPhotos([]);
     setPhotoPreview([]);
+    setModalError('');
   };
 
   // Handle photo selection
@@ -274,7 +276,7 @@ export default function Landmarks() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
+    setModalError('');
 
     try {
       // Check if we have photos to upload
@@ -353,7 +355,7 @@ export default function Landmarks() {
         || (typeof err.response?.data === 'string' ? err.response?.data : null)
         || JSON.stringify(err.response?.data)
         || 'Failed to save landmark';
-      setError(errorMsg);
+      setModalError(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -610,6 +612,11 @@ export default function Landmarks() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {modalError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                  {modalError}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
