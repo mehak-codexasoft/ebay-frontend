@@ -1,4 +1,4 @@
-import { Search, Plus, Edit2, Trash2, Eye, X, MapPin, Star, Heart, Check, Clock, Umbrella, Baby, Dog, Users, ChevronLeft, ChevronRight, Loader2, Image, ThumbsUp } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Eye, X, MapPin, Star, Heart, Check, Clock, Umbrella, Baby, Dog, Users, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import landmarkService from '../services/landmarkService';
 import cityService from '../services/cityService';
@@ -103,18 +103,61 @@ export default function Landmarks() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Helper to format opening hours
+  const formatOpeningHours = (hours) => {
+    if (!hours) return '';
+    if (typeof hours === 'string') return hours;
+    if (typeof hours === 'object') {
+      return `${hours?.open || ''} - ${hours?.close || ''}`;
+    }
+    return '';
+  };
+
   const handleView = async (landmark) => {
-    setViewingLandmark(landmark);
+    if (!landmark) return;
+
+    // Set initial data with safe values
+    const safeLandmark = {
+      ...landmark,
+      name: landmark?.name || 'Unknown',
+      city: typeof landmark?.city === 'object' ? landmark?.city?.name : (landmark?.city || 'Unknown'),
+      photos: landmark?.photos || [],
+      avg_rating: landmark?.avg_rating ?? 0,
+      likes: landmark?.likes ?? 0,
+      opening_hours: formatOpeningHours(landmark?.opening_hours),
+    };
+
+    setViewingLandmark(safeLandmark);
     setShowViewModal(true);
     setLoadingDetails(true);
+
     try {
       const fullLandmark = await landmarkService.getLandmarkById(landmark.id);
-      setViewingLandmark(fullLandmark);
+      if (fullLandmark && fullLandmark.id) {
+        // Process the response to handle nested objects
+        const processedLandmark = {
+          ...fullLandmark,
+          name: fullLandmark?.name || 'Unknown',
+          city: typeof fullLandmark?.city === 'object' ? fullLandmark?.city?.name : (fullLandmark?.city || 'Unknown'),
+          photos: fullLandmark?.photos || [],
+          avg_rating: fullLandmark?.avg_rating ?? 0,
+          likes: fullLandmark?.likes ?? 0,
+          opening_hours: formatOpeningHours(fullLandmark?.opening_hours),
+        };
+        setViewingLandmark(processedLandmark);
+      }
     } catch (err) {
       console.error('Error fetching landmark details:', err);
+      // Keep safe landmark data on error
     } finally {
       setLoadingDetails(false);
     }
+  };
+
+  const closeViewModal = () => {
+    setShowViewModal(false);
+    setViewingLandmark(null);
+    setLoadingDetails(false);
   };
 
   const openModal = async (landmark = null) => {
@@ -124,11 +167,11 @@ export default function Landmarks() {
         const fullLandmark = await landmarkService.getLandmarkById(landmark.id);
         setFormData({
           name: fullLandmark.name || '',
-          city: fullLandmark.city || '',
+          city: typeof fullLandmark.city === 'object' ? fullLandmark.city?.name : (fullLandmark.city || ''),
           short_description: fullLandmark.short_description || '',
           recommendations: fullLandmark.recommendations || '',
           category: fullLandmark.category || 'PARK',
-          opening_hours: fullLandmark.opening_hours || '',
+          opening_hours: formatOpeningHours(fullLandmark.opening_hours),
           price_range: fullLandmark.price_range || '$',
           is_rain_friendly: fullLandmark.is_rain_friendly || false,
           is_walking_distance: fullLandmark.is_walking_distance || false,
@@ -139,11 +182,11 @@ export default function Landmarks() {
       } catch (err) {
         setFormData({
           name: landmark.name || '',
-          city: landmark.city || '',
+          city: typeof landmark.city === 'object' ? landmark.city?.name : (landmark.city || ''),
           short_description: landmark.short_description || '',
           recommendations: landmark.recommendations || '',
           category: landmark.category || 'PARK',
-          opening_hours: landmark.opening_hours || '',
+          opening_hours: formatOpeningHours(landmark.opening_hours),
           price_range: landmark.price_range || '$',
           is_rain_friendly: landmark.is_rain_friendly || false,
           is_walking_distance: landmark.is_walking_distance || false,
@@ -184,14 +227,22 @@ export default function Landmarks() {
 
     try {
       if (editingLandmark) {
-        await landmarkService.updateLandmark(editingLandmark.id, formData);
+        // Use PATCH for partial update - exclude city as it requires ID not name
+        const { city: _city, ...patchData } = formData;
+        await landmarkService.patchLandmark(editingLandmark.id, patchData);
       } else {
         await landmarkService.createLandmark(formData);
       }
       closeModal();
       fetchLandmarks();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to save landmark');
+      console.error('Save error:', err.response?.data);
+      const errorMsg = err.response?.data?.detail
+        || err.response?.data?.message
+        || (typeof err.response?.data === 'string' ? err.response?.data : null)
+        || JSON.stringify(err.response?.data)
+        || 'Failed to save landmark';
+      setError(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -315,13 +366,13 @@ export default function Landmarks() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredLandmarks.map((landmark) => (
-                    <tr key={landmark.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={landmark?.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {landmark.photos && landmark.photos.length > 0 ? (
+                          {landmark?.photos && landmark.photos.length > 0 ? (
                             <img
                               src={landmark.photos[0]}
-                              alt={landmark.name}
+                              alt={landmark?.name || 'Landmark'}
                               className="w-12 h-12 rounded-xl object-cover"
                             />
                           ) : (
@@ -330,33 +381,33 @@ export default function Landmarks() {
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-gray-800">{landmark.name}</p>
+                            <p className="font-medium text-gray-800">{landmark?.name || 'Unknown'}</p>
                             <p className="text-xs text-gray-500 flex items-center gap-1">
-                              <MapPin size={10} /> {landmark.city || 'Unknown'}
+                              <MapPin size={10} /> {typeof landmark?.city === 'object' ? landmark?.city?.name : (landmark?.city || 'Unknown')}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
                         <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">
-                          {landmark.category || 'N/A'}
+                          {landmark?.category || 'N/A'}
                         </span>
                       </td>
                       <td className="px-6 py-4 hidden sm:table-cell">
                         <div className="flex items-center gap-1">
                           <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm font-medium text-gray-700">{landmark.avg_rating || 0}</span>
+                          <span className="text-sm font-medium text-gray-700">{landmark?.avg_rating || 0}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 hidden lg:table-cell">
                         <div className="flex items-center gap-1">
-                          <Heart size={14} className={landmark.is_liked ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
-                          <span className="text-sm text-gray-700">{landmark.likes || 0}</span>
+                          <Heart size={14} className={landmark?.is_liked ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+                          <span className="text-sm text-gray-700">{landmark?.likes || 0}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${landmark.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                          {landmark.verified ? <><Check size={12} /> Verified</> : 'Pending'}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${landmark?.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {landmark?.verified ? <><Check size={12} /> Verified</> : 'Pending'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -584,7 +635,7 @@ export default function Landmarks() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">Landmark Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={closeViewModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <X size={20} className="text-gray-400" />
               </button>
             </div>
@@ -596,10 +647,10 @@ export default function Landmarks() {
               ) : (
                 <>
                   {/* Image */}
-                  {viewingLandmark.photos && viewingLandmark.photos.length > 0 ? (
+                  {viewingLandmark?.photos && viewingLandmark.photos.length > 0 ? (
                     <img
                       src={viewingLandmark.photos[0]}
-                      alt={viewingLandmark.name}
+                      alt={viewingLandmark?.name || 'Landmark'}
                       className="w-full h-48 rounded-xl object-cover"
                     />
                   ) : (
@@ -610,12 +661,12 @@ export default function Landmarks() {
 
                   <div className="flex items-center gap-4">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800">{viewingLandmark.name}</h3>
+                      <h3 className="text-xl font-bold text-gray-800">{viewingLandmark?.name || 'Unknown'}</h3>
                       <p className="text-gray-500 flex items-center gap-1">
-                        <MapPin size={14} /> {viewingLandmark.city || 'Unknown'}
+                        <MapPin size={14} /> {typeof viewingLandmark?.city === 'object' ? viewingLandmark?.city?.name : (viewingLandmark?.city || 'Unknown')}
                       </p>
                     </div>
-                    {viewingLandmark.verified && (
+                    {viewingLandmark?.verified && (
                       <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
                         <Check size={12} /> Verified
                       </span>
@@ -626,43 +677,43 @@ export default function Landmarks() {
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                        <span className="font-bold text-gray-800">{viewingLandmark.avg_rating || 0}</span>
+                        <span className="font-bold text-gray-800">{viewingLandmark?.avg_rating ?? 0}</span>
                       </div>
                       <p className="text-xs text-gray-500">Rating</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Heart size={16} className="text-red-500" />
-                        <span className="font-bold text-gray-800">{viewingLandmark.likes || 0}</span>
+                        <span className="font-bold text-gray-800">{viewingLandmark?.likes ?? 0}</span>
                       </div>
                       <p className="text-xs text-gray-500">Likes</p>
                     </div>
                     <div className="text-center">
-                      <span className="font-bold text-gray-800">{viewingLandmark.price_range || 'N/A'}</span>
+                      <span className="font-bold text-gray-800">{viewingLandmark?.price_range || 'N/A'}</span>
                       <p className="text-xs text-gray-500">Price</p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    {viewingLandmark.category && (
+                    {viewingLandmark?.category && (
                       <div className="p-3 bg-gray-50 rounded-xl">
                         <p className="text-xs text-gray-400">Category</p>
                         <p className="text-gray-800 font-medium">{viewingLandmark.category}</p>
                       </div>
                     )}
-                    {viewingLandmark.short_description && (
+                    {viewingLandmark?.short_description && (
                       <div className="p-3 bg-gray-50 rounded-xl">
                         <p className="text-xs text-gray-400">Description</p>
                         <p className="text-gray-800">{viewingLandmark.short_description}</p>
                       </div>
                     )}
-                    {viewingLandmark.recommendations && (
+                    {viewingLandmark?.recommendations && (
                       <div className="p-3 bg-gray-50 rounded-xl">
                         <p className="text-xs text-gray-400">Recommendations</p>
                         <p className="text-gray-800">{viewingLandmark.recommendations}</p>
                       </div>
                     )}
-                    {viewingLandmark.opening_hours && (
+                    {viewingLandmark?.opening_hours && (
                       <div className="p-3 bg-gray-50 rounded-xl">
                         <p className="text-xs text-gray-400">Opening Hours</p>
                         <p className="text-gray-800 flex items-center gap-1">
@@ -673,18 +724,18 @@ export default function Landmarks() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-2">
-                    {viewingLandmark.is_rain_friendly && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">Rain Friendly</span>}
-                    {viewingLandmark.is_pet_friendly && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">Pet Friendly</span>}
-                    {viewingLandmark.is_child_friendly && <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded-full text-xs">Child Friendly</span>}
-                    {viewingLandmark.is_above_18 && <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">18+ Only</span>}
-                    {viewingLandmark.is_walking_distance && <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs">Walking Distance</span>}
+                    {viewingLandmark?.is_rain_friendly && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">Rain Friendly</span>}
+                    {viewingLandmark?.is_pet_friendly && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">Pet Friendly</span>}
+                    {viewingLandmark?.is_child_friendly && <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded-full text-xs">Child Friendly</span>}
+                    {viewingLandmark?.is_above_18 && <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">18+ Only</span>}
+                    {viewingLandmark?.is_walking_distance && <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs">Walking Distance</span>}
                   </div>
 
                   {/* ID */}
                   <div className="pt-4 border-t border-gray-100">
                     <p className="text-xs text-gray-400 mb-1">Landmark ID</p>
                     <p className="text-sm text-gray-600 font-mono bg-gray-50 px-3 py-2 rounded-lg break-all">
-                      {viewingLandmark.id}
+                      {viewingLandmark?.id || 'N/A'}
                     </p>
                   </div>
                 </>
@@ -704,7 +755,7 @@ export default function Landmarks() {
               </div>
               <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">Delete Landmark</h3>
               <p className="text-gray-500 text-center mb-6">
-                Are you sure you want to delete <span className="font-medium text-gray-700">{landmarkToDelete.name}</span>? This action cannot be undone.
+                Are you sure you want to delete <span className="font-medium text-gray-700">{landmarkToDelete?.name || 'this landmark'}</span>? This action cannot be undone.
               </p>
               <div className="flex gap-3">
                 <button
