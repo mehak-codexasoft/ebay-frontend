@@ -37,6 +37,17 @@ export default function Landmarks() {
   const [landmarkToDelete, setLandmarkToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Default opening hours structure
+  const getDefaultOpeningHours = () => ({
+    sunday: { closed: true, opens_at: '', closes_at: '' },
+    monday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    tuesday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    wednesday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    thursday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    friday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    saturday: { closed: true, opens_at: '', closes_at: '' },
+  });
+
   // Form data
   const [formData, setFormData] = useState({
     name: '',
@@ -47,7 +58,7 @@ export default function Landmarks() {
     short_description: '',
     recommendations: '',
     category: 'PARK',
-    opening_hours: '',
+    opening_hours: getDefaultOpeningHours(),
     price_range: '$',
     is_rain_friendly: false,
     is_walking_distance: false,
@@ -121,14 +132,48 @@ export default function Landmarks() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Helper to format opening hours
-  const formatOpeningHours = (hours) => {
-    if (!hours) return '';
+  // Helper to parse opening hours from API response
+  const parseOpeningHours = (hours) => {
+    if (!hours) return getDefaultOpeningHours();
+    if (typeof hours === 'string') {
+      // If it's a simple string, return default
+      return getDefaultOpeningHours();
+    }
+    if (typeof hours === 'object') {
+      // If it's already in correct format, merge with defaults
+      const defaults = getDefaultOpeningHours();
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      days.forEach(day => {
+        if (hours[day]) {
+          defaults[day] = {
+            closed: hours[day].closed ?? false,
+            opens_at: hours[day].opens_at || hours[day].open || '',
+            closes_at: hours[day].closes_at || hours[day].close || '',
+          };
+        }
+      });
+      return defaults;
+    }
+    return getDefaultOpeningHours();
+  };
+
+  // Helper to format opening hours for display
+  const formatOpeningHoursDisplay = (hours) => {
+    if (!hours) return 'Not set';
     if (typeof hours === 'string') return hours;
     if (typeof hours === 'object') {
+      // Check if it's the new structured format
+      if (hours.monday || hours.sunday) {
+        const openDays = Object.entries(hours)
+          .filter(([, val]) => !val.closed)
+          .map(([day]) => day.charAt(0).toUpperCase() + day.slice(1, 3));
+        if (openDays.length === 0) return 'Closed';
+        if (openDays.length === 7) return 'Open daily';
+        return `Open: ${openDays.join(', ')}`;
+      }
       return `${hours?.open || ''} - ${hours?.close || ''}`;
     }
-    return '';
+    return 'Not set';
   };
 
   const handleView = async (landmark) => {
@@ -142,7 +187,7 @@ export default function Landmarks() {
       photos: landmark?.photos || [],
       avg_rating: landmark?.avg_rating ?? 0,
       likes: landmark?.likes ?? 0,
-      opening_hours: formatOpeningHours(landmark?.opening_hours),
+      opening_hours: landmark?.opening_hours,
     };
 
     setViewingLandmark(safeLandmark);
@@ -160,7 +205,7 @@ export default function Landmarks() {
           photos: fullLandmark?.photos || [],
           avg_rating: fullLandmark?.avg_rating ?? 0,
           likes: fullLandmark?.likes ?? 0,
-          opening_hours: formatOpeningHours(fullLandmark?.opening_hours),
+          opening_hours: fullLandmark?.opening_hours,
         };
         setViewingLandmark(processedLandmark);
       }
@@ -191,7 +236,7 @@ export default function Landmarks() {
           short_description: fullLandmark.short_description || '',
           recommendations: fullLandmark.recommendations || '',
           category: fullLandmark.category || 'PARK',
-          opening_hours: formatOpeningHours(fullLandmark.opening_hours),
+          opening_hours: parseOpeningHours(fullLandmark.opening_hours),
           price_range: fullLandmark.price_range || '$',
           is_rain_friendly: fullLandmark.is_rain_friendly || false,
           is_walking_distance: fullLandmark.is_walking_distance || false,
@@ -208,7 +253,7 @@ export default function Landmarks() {
           short_description: landmark.short_description || '',
           recommendations: landmark.recommendations || '',
           category: landmark.category || 'PARK',
-          opening_hours: formatOpeningHours(landmark.opening_hours),
+          opening_hours: parseOpeningHours(landmark.opening_hours),
           price_range: landmark.price_range || '$',
           is_rain_friendly: landmark.is_rain_friendly || false,
           is_walking_distance: landmark.is_walking_distance || false,
@@ -228,7 +273,7 @@ export default function Landmarks() {
         short_description: '',
         recommendations: '',
         category: 'PARK',
-        opening_hours: '',
+        opening_hours: getDefaultOpeningHours(),
         price_range: '$',
         is_rain_friendly: false,
         is_walking_distance: false,
@@ -291,7 +336,7 @@ export default function Landmarks() {
         submitData.append('short_description', formData.short_description || '');
         submitData.append('recommendations', formData.recommendations || '');
         submitData.append('category', formData.category);
-        submitData.append('opening_hours', formData.opening_hours || '');
+        submitData.append('opening_hours', JSON.stringify(formData.opening_hours));
         submitData.append('price_range', formData.price_range);
         submitData.append('is_rain_friendly', formData.is_rain_friendly);
         submitData.append('is_walking_distance', formData.is_walking_distance);
@@ -320,7 +365,7 @@ export default function Landmarks() {
           short_description: formData.short_description || '',
           recommendations: formData.recommendations || '',
           category: formData.category,
-          opening_hours: formData.opening_hours || '',
+          opening_hours: formData.opening_hours,
           price_range: formData.price_range,
           is_rain_friendly: formData.is_rain_friendly,
           is_walking_distance: formData.is_walking_distance,
@@ -759,15 +804,63 @@ export default function Landmarks() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Opening Hours</label>
-                  <input
-                    type="text"
-                    value={formData.opening_hours}
-                    onChange={(e) => setFormData({ ...formData, opening_hours: e.target.value })}
-                    placeholder="9:00 AM - 6:00 PM"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500"
-                  />
+              </div>
+
+              {/* Opening Hours */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Opening Hours</label>
+                <div className="space-y-2 bg-gray-50 rounded-xl p-4">
+                  {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
+                    <div key={day} className="flex items-center gap-3">
+                      <div className="w-24">
+                        <span className="text-sm font-medium text-gray-700 capitalize">{day}</span>
+                      </div>
+                      <label className="flex items-center gap-2 min-w-[80px]">
+                        <input
+                          type="checkbox"
+                          checked={formData.opening_hours?.[day]?.closed || false}
+                          onChange={(e) => {
+                            const newHours = { ...formData.opening_hours };
+                            newHours[day] = { ...newHours[day], closed: e.target.checked };
+                            setFormData({ ...formData, opening_hours: newHours });
+                          }}
+                          className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                        />
+                        <span className="text-sm text-gray-600">Closed</span>
+                      </label>
+                      {!formData.opening_hours?.[day]?.closed && (
+                        <>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={formData.opening_hours?.[day]?.opens_at || ''}
+                              onChange={(e) => {
+                                const newHours = { ...formData.opening_hours };
+                                newHours[day] = { ...newHours[day], opens_at: e.target.value };
+                                setFormData({ ...formData, opening_hours: newHours });
+                              }}
+                              placeholder="Opens at"
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-500"
+                            />
+                          </div>
+                          <span className="text-gray-400">-</span>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={formData.opening_hours?.[day]?.closes_at || ''}
+                              onChange={(e) => {
+                                const newHours = { ...formData.opening_hours };
+                                newHours[day] = { ...newHours[day], closes_at: e.target.value };
+                                setFormData({ ...formData, opening_hours: newHours });
+                              }}
+                              placeholder="Closes at"
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-500"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -948,10 +1041,30 @@ export default function Landmarks() {
                     )}
                     {viewingLandmark?.opening_hours && (
                       <div className="p-3 bg-gray-50 rounded-xl">
-                        <p className="text-xs text-gray-400">Opening Hours</p>
-                        <p className="text-gray-800 flex items-center gap-1">
-                          <Clock size={14} /> {viewingLandmark.opening_hours}
-                        </p>
+                        <p className="text-xs text-gray-400 mb-2">Opening Hours</p>
+                        {typeof viewingLandmark.opening_hours === 'object' && viewingLandmark.opening_hours.monday ? (
+                          <div className="space-y-1 text-sm">
+                            {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => {
+                              const dayData = viewingLandmark.opening_hours[day];
+                              return (
+                                <div key={day} className="flex items-center justify-between">
+                                  <span className="text-gray-600 capitalize w-24">{day}</span>
+                                  <span className="text-gray-800">
+                                    {dayData?.closed ? (
+                                      <span className="text-red-500">Closed</span>
+                                    ) : (
+                                      `${dayData?.opens_at || '-'} - ${dayData?.closes_at || '-'}`
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-gray-800 flex items-center gap-1">
+                            <Clock size={14} /> {formatOpeningHoursDisplay(viewingLandmark.opening_hours)}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
