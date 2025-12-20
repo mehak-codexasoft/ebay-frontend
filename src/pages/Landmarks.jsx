@@ -1,4 +1,4 @@
-import { Search, Plus, Edit2, Trash2, Eye, X, MapPin, Star, Heart, Check, Clock, Umbrella, Baby, Dog, Users, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Eye, X, MapPin, Star, Heart, Check, Clock, Umbrella, Baby, Dog, Users, ChevronLeft, ChevronRight, Loader2, Upload } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import landmarkService from '../services/landmarkService';
 import cityService from '../services/cityService';
@@ -54,6 +54,10 @@ export default function Landmarks() {
     is_above_18: false,
     is_child_friendly: true,
   });
+
+  // Photo upload state
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [photoPreview, setPhotoPreview] = useState([]);
 
   const continents = [
     { value: 'AF', label: 'Africa' },
@@ -238,6 +242,33 @@ export default function Landmarks() {
   const closeModal = () => {
     setShowModal(false);
     setEditingLandmark(null);
+    setSelectedPhotos([]);
+    setPhotoPreview([]);
+  };
+
+  // Handle photo selection
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedPhotos(files);
+
+    // Create preview URLs
+    const previews = files.map(file => URL.createObjectURL(file));
+    setPhotoPreview(previews);
+  };
+
+  // Remove selected photo
+  const removePhoto = (index) => {
+    const newPhotos = [...selectedPhotos];
+    const newPreviews = [...photoPreview];
+
+    // Revoke the URL to prevent memory leaks
+    URL.revokeObjectURL(newPreviews[index]);
+
+    newPhotos.splice(index, 1);
+    newPreviews.splice(index, 1);
+
+    setSelectedPhotos(newPhotos);
+    setPhotoPreview(newPreviews);
   };
 
   const handleSubmit = async (e) => {
@@ -246,16 +277,77 @@ export default function Landmarks() {
     setError('');
 
     try {
-      if (editingLandmark) {
-        // Use PATCH for partial update - now city is sent as ID from dropdown
-        await landmarkService.patchLandmark(editingLandmark.id, formData);
+      // Check if we have photos to upload
+      const hasPhotos = selectedPhotos.length > 0;
+
+      if (hasPhotos) {
+        // Use FormData for file upload
+        const submitData = new FormData();
+
+        submitData.append('name', formData.name);
+        submitData.append('city', formData.city);
+        submitData.append('short_description', formData.short_description || '');
+        submitData.append('recommendations', formData.recommendations || '');
+        submitData.append('category', formData.category);
+        submitData.append('opening_hours', formData.opening_hours || '');
+        submitData.append('price_range', formData.price_range);
+        submitData.append('is_rain_friendly', formData.is_rain_friendly);
+        submitData.append('is_walking_distance', formData.is_walking_distance);
+        submitData.append('is_pet_friendly', formData.is_pet_friendly);
+        submitData.append('is_above_18', formData.is_above_18);
+        submitData.append('is_child_friendly', formData.is_child_friendly);
+
+        // Add photos
+        selectedPhotos.forEach((photo) => {
+          submitData.append('photos', photo);
+        });
+
+        if (editingLandmark) {
+          await landmarkService.patchLandmark(editingLandmark.id, submitData, true);
+        } else {
+          submitData.append('continent', formData.continent);
+          submitData.append('country', formData.country);
+          submitData.append('location', JSON.stringify(formData.location));
+          await landmarkService.createLandmark(submitData, true);
+        }
       } else {
-        await landmarkService.createLandmark(formData);
+        // Use JSON for data without photos
+        const jsonData = {
+          name: formData.name,
+          city: formData.city,
+          short_description: formData.short_description || '',
+          recommendations: formData.recommendations || '',
+          category: formData.category,
+          opening_hours: formData.opening_hours || '',
+          price_range: formData.price_range,
+          is_rain_friendly: formData.is_rain_friendly,
+          is_walking_distance: formData.is_walking_distance,
+          is_pet_friendly: formData.is_pet_friendly,
+          is_above_18: formData.is_above_18,
+          is_child_friendly: formData.is_child_friendly,
+        };
+
+        if (editingLandmark) {
+          await landmarkService.patchLandmark(editingLandmark.id, jsonData);
+        } else {
+          jsonData.continent = formData.continent;
+          jsonData.country = formData.country;
+          jsonData.location = formData.location;
+          await landmarkService.createLandmark(jsonData);
+        }
       }
       closeModal();
       fetchLandmarks();
     } catch (err) {
-      console.error('Save error:', err.response?.data);
+      console.error('Save error:', err.response?.status, err.response?.data);
+
+      // If it's a 500 error, data might have been saved - refresh list to check
+      if (err.response?.status === 500) {
+        closeModal();
+        fetchLandmarks();
+        return;
+      }
+
       const errorMsg = err.response?.data?.detail
         || err.response?.data?.message
         || (typeof err.response?.data === 'string' ? err.response?.data : null)
@@ -670,6 +762,47 @@ export default function Landmarks() {
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500"
                   />
                 </div>
+              </div>
+
+              {/* Photo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photos</label>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-green-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                    id="photo-upload"
+                  />
+                  <label htmlFor="photo-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                    <Upload size={32} className="text-gray-400" />
+                    <span className="text-sm text-gray-500">Click to upload photos</span>
+                    <span className="text-xs text-gray-400">PNG, JPG up to 5MB</span>
+                  </label>
+                </div>
+                {/* Photo Previews */}
+                {photoPreview.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {photoPreview.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Toggles */}
