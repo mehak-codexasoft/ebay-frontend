@@ -45,6 +45,53 @@ const authService = {
   getAccessToken: () => {
     return localStorage.getItem('accessToken');
   },
+
+  // POST /api/register/ - Register User
+  // Payload: nickname, username, password, birthday (optional)
+  register: async (data) => {
+    const payload = {
+      nickname: data.nickname,
+      username: data.username,
+      password: data.password,
+    };
+    if (data.birthday) {
+      payload.birthday = data.birthday;
+    }
+    const response = await api.post('/api/register/', payload);
+    return response.data;
+  },
+
+  // POST /api/otp/ - Request OTP
+  // Payload: user (email), used_for (AA, EV, FP)
+  requestOTP: async (email, usedFor = 'AA') => {
+    const response = await api.post('/api/otp/', {
+      user: email,
+      used_for: usedFor,
+    });
+    return response.data;
+  },
+
+  // POST /api/otp/verify_otp/ - Verify OTP
+  // Payload: code, user (email), used_for
+  verifyOTP: async (email, code, usedFor = 'AA') => {
+    const response = await api.post('/api/otp/verify_otp/', {
+      user: email,
+      code: code,
+      used_for: usedFor,
+    });
+    return response.data;
+  },
+
+  // POST /api/otp/set_password/ - Set Password (after OTP verification)
+  // Payload: user (uuid), new_password, confirm_password
+  setPassword: async (userId, newPassword, confirmPassword) => {
+    const response = await api.post('/api/otp/set_password/', {
+      user: userId,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
+    return response.data;
+  },
 };
 
 export default authService;
