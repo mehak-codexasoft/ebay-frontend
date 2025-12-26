@@ -1,179 +1,285 @@
-import { Search, Plus, Edit, Trash2, Eye, X, MapPin, Star, Heart, Check, Clock, DollarSign, Baby, Dog, Umbrella, Users } from 'lucide-react';
-import { useState } from 'react';
+import { Search, Plus, Edit2, Trash2, Eye, X, MapPin, Star, Heart, Check, Clock, Umbrella, Baby, Dog, Users, ChevronLeft, ChevronRight, Loader2, Upload } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import landmarkService from '../services/landmarkService';
+import cityService from '../services/cityService';
 
-const landmarksData = [
-  {
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    name: 'Central Park',
-    city: 'New York',
-    city_id: 'city-001',
-    user: 'admin',
-    user_id: 'user-001',
-    likes: 1234,
-    is_liked: false,
-    user_rating: '4.5',
-    avg_rating: 4.8,
-    verified: true,
-    created_at: '2025-01-15T10:00:00.000Z',
-    updated_at: '2025-01-15T10:00:00.000Z',
-    short_description: 'A beautiful urban park in Manhattan',
-    recommendations: 'Visit during spring for best experience',
-    category: 'PARK',
-    is_rain_friendly: false,
-    opening_hours: '6:00 AM - 10:00 PM',
-    is_walking_distance: true,
-    is_pet_friendly: true,
-    is_above_18: false,
-    is_child_friendly: true,
-    price_range: '$',
-    location: { type: 'Point', coordinates: [40.7829, -73.9654] }
-  },
-  {
-    id: '4fb85f64-5717-4562-b3fc-2c963f66afa7',
-    name: 'Eiffel Tower',
-    city: 'Paris',
-    city_id: 'city-002',
-    user: 'admin',
-    user_id: 'user-001',
-    likes: 5621,
-    is_liked: true,
-    user_rating: '5.0',
-    avg_rating: 4.9,
-    verified: true,
-    created_at: '2025-01-10T10:00:00.000Z',
-    updated_at: '2025-01-12T10:00:00.000Z',
-    short_description: 'Iconic iron lattice tower on the Champ de Mars',
-    recommendations: 'Book tickets in advance to avoid long queues',
-    category: 'MONUMENT',
-    is_rain_friendly: false,
-    opening_hours: '9:00 AM - 12:00 AM',
-    is_walking_distance: false,
-    is_pet_friendly: false,
-    is_above_18: false,
-    is_child_friendly: true,
-    price_range: '$$$',
-    location: { type: 'Point', coordinates: [48.8584, 2.2945] }
-  },
-  {
-    id: '5fc85f64-5717-4562-b3fc-2c963f66afa8',
-    name: 'Tokyo Skytree',
-    city: 'Tokyo',
-    city_id: 'city-003',
-    user: 'editor',
-    user_id: 'user-002',
-    likes: 3421,
-    is_liked: false,
-    user_rating: '4.0',
-    avg_rating: 4.6,
-    verified: false,
-    created_at: '2025-01-08T10:00:00.000Z',
-    updated_at: '2025-01-08T10:00:00.000Z',
-    short_description: 'Broadcasting and observation tower',
-    recommendations: 'Visit at sunset for amazing views',
-    category: 'ATTRACTION',
-    is_rain_friendly: true,
-    opening_hours: '10:00 AM - 9:00 PM',
-    is_walking_distance: true,
-    is_pet_friendly: false,
-    is_above_18: false,
-    is_child_friendly: true,
-    price_range: '$$',
-    location: { type: 'Point', coordinates: [35.7101, 139.8107] }
-  },
-  {
-    id: '6fd85f64-5717-4562-b3fc-2c963f66afa9',
-    name: 'Nightclub XYZ',
-    city: 'London',
-    city_id: 'city-004',
-    user: 'admin',
-    user_id: 'user-001',
-    likes: 892,
-    is_liked: false,
-    user_rating: '3.5',
-    avg_rating: 4.2,
-    verified: true,
-    created_at: '2025-01-05T10:00:00.000Z',
-    updated_at: '2025-01-06T10:00:00.000Z',
-    short_description: 'Popular nightclub with great music',
-    recommendations: 'Best on weekends',
-    category: 'NIGHTLIFE',
-    is_rain_friendly: true,
-    opening_hours: '10:00 PM - 4:00 AM',
-    is_walking_distance: true,
-    is_pet_friendly: false,
-    is_above_18: true,
-    is_child_friendly: false,
-    price_range: '$$$',
-    location: { type: 'Point', coordinates: [51.5074, -0.1278] }
-  },
-];
-
-const categories = ['PARK', 'MONUMENT', 'ATTRACTION', 'NIGHTLIFE', 'RESTAURANT', 'MUSEUM', 'BEACH', 'SHOPPING'];
+const categories = ['PARK', 'MONUMENT', 'ATTRACTION', 'NIGHTLIFE', 'RESTAURANT', 'MUSEUM', 'BEACH', 'SHOPPING', 'CAFE', 'BAR', 'HOTEL', 'OTHER'];
 const priceRanges = ['$', '$$', '$$$', '$$$$'];
 
 export default function Landmarks() {
-  const [landmarks, setLandmarks] = useState(landmarksData);
+  const [landmarks, setLandmarks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [error, setError] = useState('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
+
+  // Cities for dropdown
+  const [cities, setCities] = useState([]);
+  const [cityFilter, setCityFilter] = useState('');
+
+  // Modals
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [editingLandmark, setEditingLandmark] = useState(null);
   const [viewingLandmark, setViewingLandmark] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [modalError, setModalError] = useState('');
+
+  // Delete confirmation
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [landmarkToDelete, setLandmarkToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Default opening hours structure
+  const getDefaultOpeningHours = () => ({
+    sunday: { closed: true, opens_at: '', closes_at: '' },
+    monday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    tuesday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    wednesday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    thursday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    friday: { closed: false, opens_at: '8:00 AM', closes_at: '4:00 PM' },
+    saturday: { closed: true, opens_at: '', closes_at: '' },
+  });
+
+  // Form data
   const [formData, setFormData] = useState({
     name: '',
     city: '',
+    continent: 'EU',
+    country: '',
+    location: { type: 'Point', coordinates: [0, 0] },
     short_description: '',
     recommendations: '',
     category: 'PARK',
-    opening_hours: '',
+    opening_hours: getDefaultOpeningHours(),
     price_range: '$',
     is_rain_friendly: false,
     is_walking_distance: false,
     is_pet_friendly: false,
     is_above_18: false,
     is_child_friendly: true,
-    verified: false,
   });
 
-  const filteredLandmarks = landmarks.filter((landmark) =>
-    landmark.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    landmark.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    landmark.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Photo upload state
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [photoPreview, setPhotoPreview] = useState([]);
 
-  const openModal = (landmark = null) => {
+  const continents = [
+    { value: 'AF', label: 'Africa' },
+    { value: 'AN', label: 'Antarctica' },
+    { value: 'AS', label: 'Asia' },
+    { value: 'EU', label: 'Europe' },
+    { value: 'NA', label: 'North America' },
+    { value: 'OC', label: 'Oceania' },
+    { value: 'SA', label: 'South America' },
+  ];
+
+  // Fetch landmarks
+  const fetchLandmarks = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+      };
+      if (searchTerm) params.search = searchTerm;
+      if (cityFilter) params.city = cityFilter;
+
+      const response = await landmarkService.getLandmarks(params);
+      setLandmarks(response.results || []);
+      setTotalCount(response.count || 0);
+      setTotalPages(Math.ceil((response.count || 0) / pageSize));
+    } catch (err) {
+      setError('Failed to load landmarks');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch cities for filter
+  const fetchCities = async () => {
+    try {
+      const response = await cityService.getCities({ page_size: 100 });
+      setCities(response.results || []);
+    } catch (err) {
+      console.error('Error fetching cities:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLandmarks();
+  }, [currentPage, cityFilter]);
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
+
+  // Search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+      fetchLandmarks();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Helper to parse opening hours from API response
+  const parseOpeningHours = (hours) => {
+    if (!hours) return getDefaultOpeningHours();
+    if (typeof hours === 'string') {
+      // If it's a simple string, return default
+      return getDefaultOpeningHours();
+    }
+    if (typeof hours === 'object') {
+      // If it's already in correct format, merge with defaults
+      const defaults = getDefaultOpeningHours();
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      days.forEach(day => {
+        if (hours[day]) {
+          defaults[day] = {
+            closed: hours[day].closed ?? false,
+            opens_at: hours[day].opens_at || hours[day].open || '',
+            closes_at: hours[day].closes_at || hours[day].close || '',
+          };
+        }
+      });
+      return defaults;
+    }
+    return getDefaultOpeningHours();
+  };
+
+  // Helper to format opening hours for display
+  const formatOpeningHoursDisplay = (hours) => {
+    if (!hours) return 'Not set';
+    if (typeof hours === 'string') return hours;
+    if (typeof hours === 'object') {
+      // Check if it's the new structured format
+      if (hours.monday || hours.sunday) {
+        const openDays = Object.entries(hours)
+          .filter(([, val]) => !val.closed)
+          .map(([day]) => day.charAt(0).toUpperCase() + day.slice(1, 3));
+        if (openDays.length === 0) return 'Closed';
+        if (openDays.length === 7) return 'Open daily';
+        return `Open: ${openDays.join(', ')}`;
+      }
+      return `${hours?.open || ''} - ${hours?.close || ''}`;
+    }
+    return 'Not set';
+  };
+
+  const handleView = async (landmark) => {
+    if (!landmark) return;
+
+    // Set initial data with safe values
+    const safeLandmark = {
+      ...landmark,
+      name: landmark?.name || 'Unknown',
+      city: typeof landmark?.city === 'object' ? landmark?.city?.name : (landmark?.city || 'Unknown'),
+      photos: landmark?.photos || [],
+      avg_rating: landmark?.avg_rating ?? 0,
+      likes: landmark?.likes ?? 0,
+      opening_hours: landmark?.opening_hours,
+    };
+
+    setViewingLandmark(safeLandmark);
+    setShowViewModal(true);
+    setLoadingDetails(true);
+
+    try {
+      const fullLandmark = await landmarkService.getLandmarkById(landmark.id);
+      if (fullLandmark && fullLandmark.id) {
+        // Process the response to handle nested objects
+        const processedLandmark = {
+          ...fullLandmark,
+          name: fullLandmark?.name || 'Unknown',
+          city: typeof fullLandmark?.city === 'object' ? fullLandmark?.city?.name : (fullLandmark?.city || 'Unknown'),
+          photos: fullLandmark?.photos || [],
+          avg_rating: fullLandmark?.avg_rating ?? 0,
+          likes: fullLandmark?.likes ?? 0,
+          opening_hours: fullLandmark?.opening_hours,
+        };
+        setViewingLandmark(processedLandmark);
+      }
+    } catch (err) {
+      console.error('Error fetching landmark details:', err);
+      // Keep safe landmark data on error
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const closeViewModal = () => {
+    setShowViewModal(false);
+    setViewingLandmark(null);
+    setLoadingDetails(false);
+  };
+
+  const openModal = async (landmark = null) => {
     if (landmark) {
       setEditingLandmark(landmark);
-      setFormData({
-        name: landmark.name,
-        city: landmark.city,
-        short_description: landmark.short_description,
-        recommendations: landmark.recommendations,
-        category: landmark.category,
-        opening_hours: landmark.opening_hours,
-        price_range: landmark.price_range,
-        is_rain_friendly: landmark.is_rain_friendly,
-        is_walking_distance: landmark.is_walking_distance,
-        is_pet_friendly: landmark.is_pet_friendly,
-        is_above_18: landmark.is_above_18,
-        is_child_friendly: landmark.is_child_friendly,
-        verified: landmark.verified,
-      });
+      try {
+        const fullLandmark = await landmarkService.getLandmarkById(landmark.id);
+        // Extract city ID if city is an object
+        const cityId = typeof fullLandmark.city === 'object' ? fullLandmark.city?.id : fullLandmark.city;
+        setFormData({
+          name: fullLandmark.name || '',
+          city: cityId || '',
+          short_description: fullLandmark.short_description || '',
+          recommendations: fullLandmark.recommendations || '',
+          category: fullLandmark.category || 'PARK',
+          opening_hours: parseOpeningHours(fullLandmark.opening_hours),
+          price_range: fullLandmark.price_range || '$',
+          is_rain_friendly: fullLandmark.is_rain_friendly || false,
+          is_walking_distance: fullLandmark.is_walking_distance || false,
+          is_pet_friendly: fullLandmark.is_pet_friendly || false,
+          is_above_18: fullLandmark.is_above_18 || false,
+          is_child_friendly: fullLandmark.is_child_friendly || true,
+        });
+      } catch (err) {
+        // Extract city ID if city is an object
+        const cityId = typeof landmark.city === 'object' ? landmark.city?.id : landmark.city;
+        setFormData({
+          name: landmark.name || '',
+          city: cityId || '',
+          short_description: landmark.short_description || '',
+          recommendations: landmark.recommendations || '',
+          category: landmark.category || 'PARK',
+          opening_hours: parseOpeningHours(landmark.opening_hours),
+          price_range: landmark.price_range || '$',
+          is_rain_friendly: landmark.is_rain_friendly || false,
+          is_walking_distance: landmark.is_walking_distance || false,
+          is_pet_friendly: landmark.is_pet_friendly || false,
+          is_above_18: landmark.is_above_18 || false,
+          is_child_friendly: landmark.is_child_friendly || true,
+        });
+      }
     } else {
       setEditingLandmark(null);
       setFormData({
         name: '',
         city: '',
+        continent: 'EU',
+        country: '',
+        location: { type: 'Point', coordinates: [0, 0] },
         short_description: '',
         recommendations: '',
         category: 'PARK',
-        opening_hours: '',
+        opening_hours: getDefaultOpeningHours(),
         price_range: '$',
         is_rain_friendly: false,
         is_walking_distance: false,
         is_pet_friendly: false,
         is_above_18: false,
         is_child_friendly: true,
-        verified: false,
       });
     }
     setShowModal(true);
@@ -182,44 +288,161 @@ export default function Landmarks() {
   const closeModal = () => {
     setShowModal(false);
     setEditingLandmark(null);
+    setSelectedPhotos([]);
+    setPhotoPreview([]);
+    setModalError('');
   };
 
-  const handleSubmit = (e) => {
+  // Handle photo selection
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedPhotos(files);
+
+    // Create preview URLs
+    const previews = files.map(file => URL.createObjectURL(file));
+    setPhotoPreview(previews);
+  };
+
+  // Remove selected photo
+  const removePhoto = (index) => {
+    const newPhotos = [...selectedPhotos];
+    const newPreviews = [...photoPreview];
+
+    // Revoke the URL to prevent memory leaks
+    URL.revokeObjectURL(newPreviews[index]);
+
+    newPhotos.splice(index, 1);
+    newPreviews.splice(index, 1);
+
+    setSelectedPhotos(newPhotos);
+    setPhotoPreview(newPreviews);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingLandmark) {
-      setLandmarks(landmarks.map(l =>
-        l.id === editingLandmark.id ? { ...l, ...formData, updated_at: new Date().toISOString() } : l
-      ));
-    } else {
-      const newLandmark = {
-        id: crypto.randomUUID(),
-        ...formData,
-        user: 'admin',
-        user_id: 'user-001',
-        city_id: crypto.randomUUID(),
-        likes: 0,
-        is_liked: false,
-        user_rating: '0',
-        avg_rating: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        location: { type: 'Point', coordinates: [0, 0] }
-      };
-      setLandmarks([newLandmark, ...landmarks]);
+    setSaving(true);
+    setModalError('');
+
+    try {
+      // Check if we have photos to upload
+      const hasPhotos = selectedPhotos.length > 0;
+
+      if (hasPhotos) {
+        // Use FormData for file upload
+        const submitData = new FormData();
+
+        submitData.append('name', formData.name);
+        submitData.append('city', formData.city);
+        submitData.append('short_description', formData.short_description || '');
+        submitData.append('recommendations', formData.recommendations || '');
+        submitData.append('category', formData.category);
+        submitData.append('opening_hours', JSON.stringify(formData.opening_hours));
+        submitData.append('price_range', formData.price_range);
+        submitData.append('is_rain_friendly', formData.is_rain_friendly);
+        submitData.append('is_walking_distance', formData.is_walking_distance);
+        submitData.append('is_pet_friendly', formData.is_pet_friendly);
+        submitData.append('is_above_18', formData.is_above_18);
+        submitData.append('is_child_friendly', formData.is_child_friendly);
+
+        // Add photos
+        selectedPhotos.forEach((photo) => {
+          submitData.append('photos', photo);
+        });
+
+        if (editingLandmark) {
+          await landmarkService.patchLandmark(editingLandmark.id, submitData, true);
+        } else {
+          submitData.append('continent', formData.continent);
+          submitData.append('country', formData.country);
+          submitData.append('location', JSON.stringify(formData.location));
+          await landmarkService.createLandmark(submitData, true);
+        }
+      } else {
+        // Use JSON for data without photos
+        const jsonData = {
+          name: formData.name,
+          city: formData.city,
+          short_description: formData.short_description || '',
+          recommendations: formData.recommendations || '',
+          category: formData.category,
+          opening_hours: formData.opening_hours,
+          price_range: formData.price_range,
+          is_rain_friendly: formData.is_rain_friendly,
+          is_walking_distance: formData.is_walking_distance,
+          is_pet_friendly: formData.is_pet_friendly,
+          is_above_18: formData.is_above_18,
+          is_child_friendly: formData.is_child_friendly,
+        };
+
+        if (editingLandmark) {
+          await landmarkService.patchLandmark(editingLandmark.id, jsonData);
+        } else {
+          jsonData.continent = formData.continent;
+          jsonData.country = formData.country;
+          jsonData.location = formData.location;
+          await landmarkService.createLandmark(jsonData);
+        }
+      }
+      closeModal();
+      fetchLandmarks();
+    } catch (err) {
+      console.error('Save error:', err.response?.status, err.response?.data);
+
+      // If it's a 500 error, data might have been saved - refresh list to check
+      if (err.response?.status === 500) {
+        closeModal();
+        fetchLandmarks();
+        return;
+      }
+
+      const errorMsg = err.response?.data?.detail
+        || err.response?.data?.message
+        || (typeof err.response?.data === 'string' ? err.response?.data : null)
+        || JSON.stringify(err.response?.data)
+        || 'Failed to save landmark';
+      setModalError(errorMsg);
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   };
 
-  const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this landmark?')) {
-      setLandmarks(landmarks.filter(l => l.id !== id));
+  const handleDeleteClick = (landmark) => {
+    setLandmarkToDelete(landmark);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!landmarkToDelete) return;
+    setDeleting(true);
+    try {
+      await landmarkService.deleteLandmark(landmarkToDelete.id);
+      setIsDeleteModalOpen(false);
+      setLandmarkToDelete(null);
+      fetchLandmarks();
+    } catch (err) {
+      setError('Failed to delete landmark');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleView = (landmark) => {
-    setViewingLandmark(landmark);
-    setShowViewModal(true);
+  const handleLike = async (landmark) => {
+    try {
+      if (landmark.is_liked) {
+        await landmarkService.unlikeLandmark(landmark.id);
+      } else {
+        await landmarkService.likeLandmark(landmark.id);
+      }
+      fetchLandmarks();
+    } catch (err) {
+      console.error('Error liking/unliking landmark:', err);
+    }
   };
+
+  // Filter landmarks by category (client-side)
+  const filteredLandmarks = categoryFilter
+    ? landmarks.filter(l => l.category === categoryFilter)
+    : landmarks;
 
   return (
     <div className="space-y-6">
@@ -227,7 +450,7 @@ export default function Landmarks() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Landmarks</h1>
-          <p className="text-gray-500 mt-1">Manage all landmarks in the system.</p>
+          <p className="text-gray-500 mt-1">Manage all landmarks in the system. Total: {totalCount}</p>
         </div>
         <button
           onClick={() => openModal()}
@@ -238,19 +461,39 @@ export default function Landmarks() {
         </button>
       </div>
 
-      {/* Search & Filter */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
           <Search size={18} className="text-gray-400" />
           <input
             type="text"
-            placeholder="Search by name, city, or category..."
+            placeholder="Search landmarks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-transparent outline-none text-sm text-gray-600 placeholder-gray-400 w-full"
           />
         </div>
-        <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 outline-none shadow-sm">
+        <select
+          value={cityFilter}
+          onChange={(e) => { setCityFilter(e.target.value); setCurrentPage(1); }}
+          className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 outline-none shadow-sm"
+        >
+          <option value="">All Cities</option>
+          {cities.map(city => (
+            <option key={city.id} value={city.id}>{city.name}</option>
+          ))}
+        </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 outline-none shadow-sm"
+        >
           <option value="">All Categories</option>
           {categories.map(cat => (
             <option key={cat} value={cat}>{cat}</option>
@@ -260,99 +503,145 @@ export default function Landmarks() {
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Landmark</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Category</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Rating</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Price</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredLandmarks.map((landmark) => (
-                <tr key={landmark.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                        <MapPin size={18} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800">{landmark.name}</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <MapPin size={10} /> {landmark.city}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 hidden md:table-cell">
-                    <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">
-                      {landmark.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 hidden sm:table-cell">
-                    <div className="flex items-center gap-1">
-                      <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                      <span className="text-sm font-medium text-gray-700">{landmark.avg_rating}</span>
-                      <span className="text-xs text-gray-400">({landmark.likes})</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 hidden lg:table-cell">
-                    <span className="text-sm font-medium text-gray-700">{landmark.price_range}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${landmark.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {landmark.verified ? <><Check size={12} /> Verified</> : 'Pending'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleView(landmark)}
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button
-                        onClick={() => openModal(landmark)}
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-600 transition-colors"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(landmark.id)}
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredLandmarks.length === 0 && (
+        {loading ? (
           <div className="p-12 text-center">
-            <MapPin size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">No landmarks found</p>
+            <Loader2 size={48} className="mx-auto text-green-500 animate-spin mb-4" />
+            <p className="text-gray-500">Loading landmarks...</p>
           </div>
-        )}
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Landmark</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Category</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Rating</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Likes</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredLandmarks.map((landmark) => (
+                    <tr key={landmark?.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {landmark?.photos && landmark.photos.length > 0 ? (
+                            <img
+                              src={landmark.photos[0]}
+                              alt={landmark?.name || 'Landmark'}
+                              className="w-12 h-12 rounded-xl object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                              <MapPin size={20} className="text-green-600" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-800">{landmark?.name || 'Unknown'}</p>
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                              <MapPin size={10} /> {typeof landmark?.city === 'object' ? landmark?.city?.name : (landmark?.city || 'Unknown')}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">
+                          {landmark?.category || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 hidden sm:table-cell">
+                        <div className="flex items-center gap-1">
+                          <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                          <span className="text-sm font-medium text-gray-700">{landmark?.avg_rating || 0}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden lg:table-cell">
+                        <div className="flex items-center gap-1">
+                          <Heart size={14} className={landmark?.is_liked ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+                          <span className="text-sm text-gray-700">{landmark?.likes || 0}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${landmark?.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {landmark?.verified ? <><Check size={12} /> Verified</> : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleLike(landmark)}
+                            className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${landmark.is_liked ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                            title={landmark.is_liked ? 'Unlike' : 'Like'}
+                          >
+                            <Heart size={16} className={landmark.is_liked ? 'fill-current' : ''} />
+                          </button>
+                          <button
+                            onClick={() => handleView(landmark)}
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                            title="View"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => openModal(landmark)}
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-600 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(landmark)}
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-          <p className="text-sm text-gray-500">Showing {filteredLandmarks.length} landmarks</p>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Previous</button>
-            <button className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg">1</button>
-            <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">2</button>
-            <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Next</button>
-          </div>
-        </div>
+            {filteredLandmarks.length === 0 && (
+              <div className="p-12 text-center">
+                <MapPin size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">No landmarks found</p>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                <p className="text-sm text-gray-500">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="text-sm text-gray-600 px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Create/Edit Modal */}
@@ -368,6 +657,11 @@ export default function Landmarks() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {modalError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                  {modalError}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
@@ -381,15 +675,89 @@ export default function Landmarks() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                     required
-                  />
+                  >
+                    <option value="">Select City</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={city.id}>{city.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              {/* Show continent, country, location only for new landmarks */}
+              {!editingLandmark && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Continent *</label>
+                      <select
+                        value={formData.continent}
+                        onChange={(e) => setFormData({ ...formData, continent: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500"
+                        required
+                      >
+                        {continents.map(c => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+                      <input
+                        type="text"
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        placeholder="e.g. Slovakia"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Latitude *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.location?.coordinates?.[1] || 0}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          location: {
+                            type: 'Point',
+                            coordinates: [formData.location?.coordinates?.[0] || 0, parseFloat(e.target.value) || 0]
+                          }
+                        })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        placeholder="e.g. 48.1486"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Longitude *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.location?.coordinates?.[0] || 0}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          location: {
+                            type: 'Point',
+                            coordinates: [parseFloat(e.target.value) || 0, formData.location?.coordinates?.[1] || 0]
+                          }
+                        })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                        placeholder="e.g. 17.1077"
+                        required
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
@@ -436,22 +804,110 @@ export default function Landmarks() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Opening Hours</label>
-                  <input
-                    type="text"
-                    value={formData.opening_hours}
-                    onChange={(e) => setFormData({ ...formData, opening_hours: e.target.value })}
-                    placeholder="9:00 AM - 6:00 PM"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500"
-                  />
+              </div>
+
+              {/* Opening Hours */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Opening Hours</label>
+                <div className="space-y-2 bg-gray-50 rounded-xl p-4">
+                  {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
+                    <div key={day} className="flex items-center gap-3">
+                      <div className="w-24">
+                        <span className="text-sm font-medium text-gray-700 capitalize">{day}</span>
+                      </div>
+                      <label className="flex items-center gap-2 min-w-[80px]">
+                        <input
+                          type="checkbox"
+                          checked={formData.opening_hours?.[day]?.closed || false}
+                          onChange={(e) => {
+                            const newHours = { ...formData.opening_hours };
+                            newHours[day] = { ...newHours[day], closed: e.target.checked };
+                            setFormData({ ...formData, opening_hours: newHours });
+                          }}
+                          className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                        />
+                        <span className="text-sm text-gray-600">Closed</span>
+                      </label>
+                      {!formData.opening_hours?.[day]?.closed && (
+                        <>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={formData.opening_hours?.[day]?.opens_at || ''}
+                              onChange={(e) => {
+                                const newHours = { ...formData.opening_hours };
+                                newHours[day] = { ...newHours[day], opens_at: e.target.value };
+                                setFormData({ ...formData, opening_hours: newHours });
+                              }}
+                              placeholder="Opens at"
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-500"
+                            />
+                          </div>
+                          <span className="text-gray-400">-</span>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={formData.opening_hours?.[day]?.closes_at || ''}
+                              onChange={(e) => {
+                                const newHours = { ...formData.opening_hours };
+                                newHours[day] = { ...newHours[day], closes_at: e.target.value };
+                                setFormData({ ...formData, opening_hours: newHours });
+                              }}
+                              placeholder="Closes at"
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-green-500"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              {/* Photo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photos</label>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 hover:border-green-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                    id="photo-upload"
+                  />
+                  <label htmlFor="photo-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                    <Upload size={32} className="text-gray-400" />
+                    <span className="text-sm text-gray-500">Click to upload photos</span>
+                    <span className="text-xs text-gray-400">PNG, JPG up to 5MB</span>
+                  </label>
+                </div>
+                {/* Photo Previews */}
+                {photoPreview.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {photoPreview.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Toggles */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
                 {[
-                  { key: 'verified', label: 'Verified', icon: Check },
                   { key: 'is_rain_friendly', label: 'Rain Friendly', icon: Umbrella },
                   { key: 'is_walking_distance', label: 'Walking Distance', icon: MapPin },
                   { key: 'is_pet_friendly', label: 'Pet Friendly', icon: Dog },
@@ -481,9 +937,17 @@ export default function Landmarks() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {editingLandmark ? 'Update Landmark' : 'Create Landmark'}
+                  {saving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    editingLandmark ? 'Update Landmark' : 'Create Landmark'
+                  )}
                 </button>
               </div>
             </form>
@@ -494,81 +958,174 @@ export default function Landmarks() {
       {/* View Modal */}
       {showViewModal && viewingLandmark && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-8">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">Landmark Details</h2>
-              <button onClick={() => setShowViewModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={closeViewModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <X size={20} className="text-gray-400" />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                  <MapPin size={28} className="text-green-600" />
+              {loadingDetails ? (
+                <div className="text-center py-8">
+                  <Loader2 size={32} className="mx-auto text-green-500 animate-spin" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">{viewingLandmark.name}</h3>
-                  <p className="text-gray-500 flex items-center gap-1">
-                    <MapPin size={14} /> {viewingLandmark.city}
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Image */}
+                  {viewingLandmark?.photos && viewingLandmark.photos.length > 0 ? (
+                    <img
+                      src={viewingLandmark.photos[0]}
+                      alt={viewingLandmark?.name || 'Landmark'}
+                      className="w-full h-48 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                      <MapPin size={48} className="text-green-600" />
+                    </div>
+                  )}
 
-              <div className="grid grid-cols-3 gap-4 py-4 border-y border-gray-100">
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                    <span className="font-bold text-gray-800">{viewingLandmark.avg_rating}</span>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-800">{viewingLandmark?.name || 'Unknown'}</h3>
+                      <p className="text-gray-500 flex items-center gap-1">
+                        <MapPin size={14} /> {typeof viewingLandmark?.city === 'object' ? viewingLandmark?.city?.name : (viewingLandmark?.city || 'Unknown')}
+                      </p>
+                    </div>
+                    {viewingLandmark?.verified && (
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
+                        <Check size={12} /> Verified
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500">Rating</p>
-                </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Heart size={16} className="text-red-500" />
-                    <span className="font-bold text-gray-800">{viewingLandmark.likes}</span>
+
+                  <div className="grid grid-cols-3 gap-4 py-4 border-y border-gray-100">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Star size={16} className="text-yellow-500 fill-yellow-500" />
+                        <span className="font-bold text-gray-800">{viewingLandmark?.avg_rating ?? 0}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">Rating</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Heart size={16} className="text-red-500" />
+                        <span className="font-bold text-gray-800">{viewingLandmark?.likes ?? 0}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">Likes</p>
+                    </div>
+                    <div className="text-center">
+                      <span className="font-bold text-gray-800">{viewingLandmark?.price_range || 'N/A'}</span>
+                      <p className="text-xs text-gray-500">Price</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500">Likes</p>
-                </div>
-                <div className="text-center">
-                  <span className="font-bold text-gray-800">{viewingLandmark.price_range}</span>
-                  <p className="text-xs text-gray-500">Price</p>
-                </div>
-              </div>
 
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Category</p>
-                  <p className="text-gray-800">{viewingLandmark.category}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Description</p>
-                  <p className="text-gray-800">{viewingLandmark.short_description}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Recommendations</p>
-                  <p className="text-gray-800">{viewingLandmark.recommendations}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Opening Hours</p>
-                  <p className="text-gray-800 flex items-center gap-1"><Clock size={14} /> {viewingLandmark.opening_hours}</p>
-                </div>
-              </div>
+                  <div className="space-y-3">
+                    {viewingLandmark?.category && (
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <p className="text-xs text-gray-400">Category</p>
+                        <p className="text-gray-800 font-medium">{viewingLandmark.category}</p>
+                      </div>
+                    )}
+                    {viewingLandmark?.short_description && (
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <p className="text-xs text-gray-400">Description</p>
+                        <p className="text-gray-800">{viewingLandmark.short_description}</p>
+                      </div>
+                    )}
+                    {viewingLandmark?.recommendations && (
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <p className="text-xs text-gray-400">Recommendations</p>
+                        <p className="text-gray-800">{viewingLandmark.recommendations}</p>
+                      </div>
+                    )}
+                    {viewingLandmark?.opening_hours && (
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <p className="text-xs text-gray-400 mb-2">Opening Hours</p>
+                        {typeof viewingLandmark.opening_hours === 'object' && viewingLandmark.opening_hours.monday ? (
+                          <div className="space-y-1 text-sm">
+                            {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => {
+                              const dayData = viewingLandmark.opening_hours[day];
+                              return (
+                                <div key={day} className="flex items-center justify-between">
+                                  <span className="text-gray-600 capitalize w-24">{day}</span>
+                                  <span className="text-gray-800">
+                                    {dayData?.closed ? (
+                                      <span className="text-red-500">Closed</span>
+                                    ) : (
+                                      `${dayData?.opens_at || '-'} - ${dayData?.closes_at || '-'}`
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-gray-800 flex items-center gap-1">
+                            <Clock size={14} /> {formatOpeningHoursDisplay(viewingLandmark.opening_hours)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-              <div className="flex flex-wrap gap-2 pt-2">
-                {viewingLandmark.verified && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">✓ Verified</span>}
-                {viewingLandmark.is_rain_friendly && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">☔ Rain Friendly</span>}
-                {viewingLandmark.is_pet_friendly && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">🐕 Pet Friendly</span>}
-                {viewingLandmark.is_child_friendly && <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded-full text-xs">👶 Child Friendly</span>}
-                {viewingLandmark.is_above_18 && <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">🔞 18+ Only</span>}
-                {viewingLandmark.is_walking_distance && <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs">🚶 Walking Distance</span>}
-              </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {viewingLandmark?.is_rain_friendly && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">Rain Friendly</span>}
+                    {viewingLandmark?.is_pet_friendly && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">Pet Friendly</span>}
+                    {viewingLandmark?.is_child_friendly && <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded-full text-xs">Child Friendly</span>}
+                    {viewingLandmark?.is_above_18 && <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">18+ Only</span>}
+                    {viewingLandmark?.is_walking_distance && <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs">Walking Distance</span>}
+                  </div>
 
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-              >
-                Close
-              </button>
+                  {/* ID */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <p className="text-xs text-gray-400 mb-1">Landmark ID</p>
+                    <p className="text-sm text-gray-600 font-mono bg-gray-50 px-3 py-2 rounded-lg break-all">
+                      {viewingLandmark?.id || 'N/A'}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && landmarkToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">Delete Landmark</h3>
+              <p className="text-gray-500 text-center mb-6">
+                Are you sure you want to delete <span className="font-medium text-gray-700">{landmarkToDelete?.name || 'this landmark'}</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setIsDeleteModalOpen(false); setLandmarkToDelete(null); }}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

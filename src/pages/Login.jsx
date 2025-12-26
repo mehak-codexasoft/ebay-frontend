@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import logo from '../assets/logo.png';
+import authService from '../services/authService';
+import userService from '../services/userService';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -14,17 +16,25 @@ export default function Login({ onLogin }) {
     setError('');
     setLoading(true);
 
-    // Simulate login - replace with actual API call
-    setTimeout(() => {
-      if (email === 'admin@example.com' && password === 'aszx1234') {
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('user', JSON.stringify({ email, role: 'admin' }));
-        onLogin();
-      } else {
+    try {
+      await authService.login(email, password);
+
+      // Get current user info
+      const user = await userService.getCurrentUser();
+      localStorage.setItem('user', JSON.stringify(user));
+
+      onLogin();
+    } catch (err) {
+      if (err.response?.status === 401) {
         setError('Invalid email or password');
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('Login failed. Please try again.');
       }
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
