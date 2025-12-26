@@ -4,52 +4,52 @@ import { useState } from 'react';
 const productsData = [
   {
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    name: 'Premium Monthly',
+    name: 'Startpass',
     description: 'Full access to all premium features with monthly billing',
-    unit_amount: 999,
-    total_amount: 999,
-    currency: 'USD',
-    discount_percentage: 0,
-    interval: 'month',
+    unit_amount: 0,
+    total_amount: 0,
+    currency: 'EUR',
+    discount_percentage: 100,
+    interval: 'week',
     marketing_features: ['Unlimited landmarks', 'No ads', 'Priority support', 'Offline access']
   },
   {
     id: '4fb85f64-5717-4562-b3fc-2c963f66afa7',
-    name: 'Premium Yearly',
+    name: 'Real Explorer',
     description: 'Full access to all premium features with yearly billing - Save 20%',
-    unit_amount: 9999,
-    total_amount: 7999,
-    currency: 'USD',
-    discount_percentage: 20,
-    interval: 'year',
+    unit_amount: 79,
+    total_amount: 79,
+    currency: 'EUR',
+    discount_percentage: 21,
+    interval: 'month',
     marketing_features: ['Unlimited landmarks', 'No ads', 'Priority support', 'Offline access', 'Early access to new features']
   },
   {
     id: '5fc85f64-5717-4562-b3fc-2c963f66afa8',
-    name: 'Basic Weekly',
+    name: 'Borderless Travel',
     description: 'Limited access with weekly billing',
-    unit_amount: 299,
-    total_amount: 299,
-    currency: 'USD',
-    discount_percentage: 0,
-    interval: 'week',
+    unit_amount: 69,
+    total_amount: 69,
+    currency: 'EUR',
+    discount_percentage: 31,
+    interval: 'year',
     marketing_features: ['50 landmarks/month', 'Basic support']
   },
-  {
-    id: '6fd85f64-5717-4562-b3fc-2c963f66afa9',
-    name: 'Lifetime Access',
-    description: 'One-time payment for lifetime access to all features',
-    unit_amount: 29999,
-    total_amount: 19999,
-    currency: 'USD',
-    discount_percentage: 33,
-    interval: 'lifetime',
-    marketing_features: ['Unlimited landmarks', 'No ads', 'Priority support', 'Offline access', 'All future updates', 'Lifetime access']
-  },
+  // {
+  //   id: '6fd85f64-5717-4562-b3fc-2c963f66afa9',
+  //   name: 'Lifetime Access',
+  //   description: 'One-time payment for lifetime access to all features',
+  //   unit_amount: 29999,
+  //   total_amount: 19999,
+  //   currency: 'USD',
+  //   discount_percentage: 33,
+  //   interval: 'lifetime',
+  //   marketing_features: ['Unlimited landmarks', 'No ads', 'Priority support', 'Offline access', 'All future updates', 'Lifetime access']
+  // },
 ];
 
-const intervals = ['week', 'month', 'year', 'lifetime'];
-const currencies = ['USD', 'EUR', 'GBP', 'PKR'];
+const intervals = ['week', 'month', 'year'];
+const currencies = ['EUR'];
 
 export default function Products() {
   const [products, setProducts] = useState(productsData);
@@ -64,7 +64,7 @@ export default function Products() {
     description: '',
     unit_amount: 0,
     total_amount: 0,
-    currency: 'USD',
+    currency: 'EUR',
     discount_percentage: 0,
     interval: 'month',
     marketing_features: []
@@ -77,7 +77,7 @@ export default function Products() {
 
   const formatPrice = (amount, currency) => {
     const price = amount / 100;
-    const symbols = { USD: '$', EUR: '€', GBP: '£', PKR: 'Rs.' };
+    const symbols = { EUR: '€' };
     return `${symbols[currency] || currency}${price.toFixed(2)}`;
   };
 
@@ -101,7 +101,7 @@ export default function Products() {
         description: '',
         unit_amount: 0,
         total_amount: 0,
-        currency: 'USD',
+        currency: 'EUR',
         discount_percentage: 0,
         interval: 'month',
         marketing_features: []

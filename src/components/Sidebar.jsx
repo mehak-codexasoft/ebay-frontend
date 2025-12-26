@@ -46,7 +46,7 @@ export default function Sidebar({ isOpen, setIsOpen, onLogout }) {
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-600 shrink-0">
           <div className="flex items-center gap-2">
             <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
-            <span className="text-lg font-bold text-white">BeWay</span>
+            <span className="text-lg font-bold text-white">Beway</span>
           </div>
           <button
             onClick={() => setIsOpen(false)}

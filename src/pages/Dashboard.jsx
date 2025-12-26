@@ -9,18 +9,17 @@ const stats = [
 ];
 
 const recentOrders = [
-  { id: '#ORD-001', customer: 'John Doe', product: 'MacBook Pro', amount: '$2,499', status: 'Completed', date: '2024-01-15' },
-  { id: '#ORD-002', customer: 'Jane Smith', product: 'iPhone 15 Pro', amount: '$1,199', status: 'Processing', date: '2024-01-15' },
-  { id: '#ORD-003', customer: 'Mike Johnson', product: 'AirPods Pro', amount: '$249', status: 'Pending', date: '2024-01-14' },
-  { id: '#ORD-004', customer: 'Sarah Wilson', product: 'iPad Air', amount: '$799', status: 'Completed', date: '2024-01-14' },
-  { id: '#ORD-005', customer: 'Tom Brown', product: 'Apple Watch', amount: '$399', status: 'Shipped', date: '2024-01-13' },
+  { id: '#ORD-001', customer: 'John Doe', product: 'Startpass', amount: '€0', status: 'Completed', date: '2024-01-15' },
+  { id: '#ORD-002', customer: 'Jane Smith', product: 'Real Explorer', amount: '€79', status: 'Processing', date: '2024-01-15' },
+  { id: '#ORD-003', customer: 'Mike Johnson', product: 'Borderless Travel', amount: '€69', status: 'Pending', date: '2024-01-14' },
+  { id: '#ORD-004', customer: 'Sarah Wilson', product: 'Real Explorer', amount: '€79', status: 'Completed', date: '2024-01-14' },
+  { id: '#ORD-005', customer: 'Tom Brown', product: 'Borderless Travel', amount: '€69', status: 'Completed', date: '2024-01-13' },
 ];
 
 const topProducts = [
-  { name: 'MacBook Pro 16"', sales: 1234, revenue: '$2.4M', growth: '+12%' },
-  { name: 'iPhone 15 Pro Max', sales: 2341, revenue: '$3.2M', growth: '+18%' },
-  { name: 'iPad Pro 12.9"', sales: 892, revenue: '$890K', growth: '+5%' },
-  { name: 'AirPods Pro 2', sales: 3456, revenue: '$862K', growth: '+22%' },
+  { name: 'Startpass', sales: 1234, revenue: '$2.4M', growth: '+12%', price: '€0' },
+  { name: 'Real Explorer', sales: 2341, revenue: '$3.2M', growth: '+18%', price: '€79' },
+  { name: 'Borderless Travel', sales: 892, revenue: '$890K', growth: '+5%', price: '€69' },
 ];
 
 const statusColors = {

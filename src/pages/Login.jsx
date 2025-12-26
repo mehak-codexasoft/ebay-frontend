@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -15,7 +16,7 @@ export default function Login({ onLogin }) {
 
     // Simulate login - replace with actual API call
     setTimeout(() => {
-      if (email === 'superadmin@example.com' && password === 'aszx1234') {
+      if (email === 'admin@example.com' && password === 'aszx1234') {
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('user', JSON.stringify({ email, role: 'admin' }));
         onLogin();
@@ -32,7 +33,7 @@ export default function Login({ onLogin }) {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-lg mb-4">
-            <img src="/src/assets/logo.png" alt="Beway" className="w-14 h-14 object-contain" />
+            <img src={logo} alt="Beway" className="w-14 h-14 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
           <p className="text-gray-400 mt-1">Sign in to your admin account</p>
@@ -57,7 +58,7 @@ export default function Login({ onLogin }) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="superadmin@example.com"
+                  placeholder="admin@example.com"
                   required
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
                 />
